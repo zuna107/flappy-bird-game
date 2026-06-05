@@ -114,12 +114,116 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        position: relative;
       }
 
       .header-user-info {
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+
+      .header-profile-wrap {
+        position: relative;
+      }
+
+      .header-profile-trigger {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .header-profile-trigger:hover .header-user-name {
+        color: var(--coral);
+      }
+
+      .header-profile-panel {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(280px, calc(100vw - 32px));
+        background: #fff;
+        border: 1.5px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 14px 30px rgba(25, 31, 52, 0.12);
+        padding: 14px;
+        z-index: 30;
+      }
+
+      .header-profile-panel.hidden {
+        display: none;
+      }
+
+      .header-profile-panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+
+      .header-profile-form {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .header-profile-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-profile-input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .header-profile-input:focus {
+        outline: none;
+        border-color: var(--coral);
+        box-shadow: 0 0 0 3px rgba(255, 95, 95, 0.14);
+      }
+
+      .header-profile-save {
+        border: none;
+        border-radius: 12px;
+        background: var(--coral);
+        color: #fff;
+        padding: 10px 14px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .header-profile-status {
+        min-height: 16px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .header-profile-status.error {
+        color: #E45858;
+      }
+
+      .header-profile-email {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
       }
 
       .header-avatar {
@@ -572,101 +676,9 @@
         white-space: nowrap;
       }
 
-      .lb-footer-actions {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 12px;
-        flex: 1;
-      }
-
-      .lb-profile-editor {
-        width: 100%;
-        max-width: 240px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .lb-profile-label {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .lb-profile-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .lb-profile-input {
-        flex: 1;
-        min-width: 0;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 12px;
-        font-family: 'DM Sans', sans-serif;
-        font-size: 12px;
-        color: var(--text);
-        background: #fff;
-      }
-
-      .lb-profile-input:focus {
-        outline: none;
-        border-color: var(--coral);
-        box-shadow: 0 0 0 3px rgba(255, 95, 95, 0.14);
-      }
-
-      .btn-profile-save {
-        border: none;
-        border-radius: 12px;
-        background: var(--coral);
-        color: #fff;
-        padding: 10px 14px;
-        font-family: 'DM Sans', sans-serif;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        flex-shrink: 0;
-      }
-
-      .btn-profile-save:hover {
-        filter: brightness(0.98);
-      }
-
-      .lb-profile-status {
-        min-height: 16px;
-        font-size: 11px;
-        color: var(--muted);
-      }
-
-      .lb-profile-status.error {
-        color: #E45858;
-      }
-
-      .lb-footer-logout {
-        align-self: flex-end;
-      }
-
       @media (max-width: 900px) {
         .lb-footer {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .lb-footer-actions {
-          align-items: stretch;
-        }
-
-        .lb-profile-editor {
-          max-width: none;
-        }
-
-        .lb-footer-logout {
-          align-self: flex-start;
+          align-items: center;
         }
       }
 
@@ -870,17 +882,7 @@
             <span id="footer-user-avatar-wrap"></span>
             <span class="lb-footer-name" id="footer-user-name"></span>
           </div>
-          <div class="lb-footer-actions">
-            <form class="lb-profile-editor" id="profile-name-form">
-              <label class="lb-profile-label" for="profile-name-input">Profile name</label>
-              <div class="lb-profile-controls">
-                <input class="lb-profile-input" id="profile-name-input" type="text" maxlength="24" placeholder="Enter your name" />
-                <button class="btn-profile-save" type="submit">Save</button>
-              </div>
-              <div class="lb-profile-status" id="profile-name-status" aria-live="polite"></div>
-            </form>
-            <button class="btn-signout-link lb-footer-logout" id="btn-leaderboard-logout">Sign out</button>
-          </div>
+          <button class="btn-signout-link" id="btn-leaderboard-logout">Sign out</button>
         </div>
       </div>
 
@@ -1111,6 +1113,7 @@
           picture: '',
           loggedIn: false
         },
+        isProfileEditorOpen: false,
 
         getCustomNameForEmail(email) {
           if (!email) return '';
@@ -1251,6 +1254,11 @@
           return { ok: true, message: 'Profile name saved.' };
         },
 
+        setProfileEditorOpen(isOpen) {
+          this.isProfileEditorOpen = isOpen;
+          this.syncUI();
+        },
+
         showError(msg) {
           const el1 = document.getElementById('menu-auth-error');
           const el2 = document.getElementById('gameover-auth-error');
@@ -1321,24 +1329,91 @@
             footerAvatarWrap.innerHTML = '';
             footerAvatarWrap.appendChild(this._renderAvatar(28));
             document.getElementById('footer-user-name').textContent = this.profile.name;
-            const profileInput = document.getElementById('profile-name-input');
-            const profileStatus = document.getElementById('profile-name-status');
-            if (profileInput) profileInput.value = this.profile.name;
-            if (profileStatus) {
-              profileStatus.textContent = '';
-              profileStatus.classList.remove('error');
-            }
 
             // Header: show user info + sign out
             topAuthNode.innerHTML = '';
             const wrapper = document.createElement('div');
             wrapper.className = 'header-user-info';
-            wrapper.appendChild(this._renderAvatar(32));
+            const profileWrap = document.createElement('div');
+            profileWrap.className = 'header-profile-wrap';
+
+            const triggerBtn = document.createElement('button');
+            triggerBtn.className = 'header-profile-trigger';
+            triggerBtn.type = 'button';
+            triggerBtn.setAttribute('aria-expanded', this.isProfileEditorOpen ? 'true' : 'false');
+            triggerBtn.appendChild(this._renderAvatar(32));
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'header-user-name';
             nameSpan.textContent = this.profile.name;
-            wrapper.appendChild(nameSpan);
+            triggerBtn.appendChild(nameSpan);
+            triggerBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              AuthSystem.setProfileEditorOpen(!AuthSystem.isProfileEditorOpen);
+            });
+            profileWrap.appendChild(triggerBtn);
+
+            const profilePanel = document.createElement('div');
+            profilePanel.className = 'header-profile-panel' + (this.isProfileEditorOpen ? '' : ' hidden');
+            profilePanel.id = 'header-profile-panel';
+            profilePanel.addEventListener('click', (e) => e.stopPropagation());
+
+            const panelTitle = document.createElement('div');
+            panelTitle.className = 'header-profile-panel-title';
+            panelTitle.textContent = 'Edit profile';
+            profilePanel.appendChild(panelTitle);
+
+            const form = document.createElement('form');
+            form.className = 'header-profile-form';
+            form.id = 'profile-name-form';
+
+            const inputRow = document.createElement('div');
+            inputRow.className = 'header-profile-input-row';
+
+            const input = document.createElement('input');
+            input.className = 'header-profile-input';
+            input.id = 'profile-name-input';
+            input.type = 'text';
+            input.maxLength = 24;
+            input.placeholder = 'Enter your name';
+            input.value = this.profile.name;
+            inputRow.appendChild(input);
+
+            const saveButton = document.createElement('button');
+            saveButton.className = 'header-profile-save';
+            saveButton.type = 'submit';
+            saveButton.textContent = 'Save';
+            inputRow.appendChild(saveButton);
+            form.appendChild(inputRow);
+
+            const status = document.createElement('div');
+            status.className = 'header-profile-status';
+            status.id = 'profile-name-status';
+            status.setAttribute('aria-live', 'polite');
+            form.appendChild(status);
+
+            if (this.profile.email) {
+              const emailText = document.createElement('div');
+              emailText.className = 'header-profile-email';
+              emailText.textContent = this.profile.email;
+              form.appendChild(emailText);
+            }
+
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const result = AuthSystem.updateProfileName(input.value);
+              status.textContent = result.message;
+              status.classList.toggle('error', !result.ok);
+
+              if (result.ok) {
+                AuthSystem.isProfileEditorOpen = false;
+                AuthSystem.syncUI();
+              }
+            });
+
+            profilePanel.appendChild(form);
+            profileWrap.appendChild(profilePanel);
+            wrapper.appendChild(profileWrap);
 
             const signoutBtn = document.createElement('button');
             signoutBtn.className = 'btn-signout-link';
@@ -1356,13 +1431,7 @@
             if (lockPanel) lockPanel.classList.remove('hidden');
             if (unlockedFooter) unlockedFooter.classList.add('hidden');
             if (gameoverPrompt) gameoverPrompt.classList.remove('hidden');
-            const profileInput = document.getElementById('profile-name-input');
-            const profileStatus = document.getElementById('profile-name-status');
-            if (profileInput) profileInput.value = '';
-            if (profileStatus) {
-              profileStatus.textContent = '';
-              profileStatus.classList.remove('error');
-            }
+            this.isProfileEditorOpen = false;
 
             // Header: sign in button
             topAuthNode.innerHTML = '';
@@ -2102,17 +2171,11 @@
           AuthSystem.logout();
         });
 
-        document.getElementById('profile-name-form').addEventListener('submit', (e) => {
-          e.preventDefault();
-          const input = document.getElementById('profile-name-input');
-          const status = document.getElementById('profile-name-status');
-          const result = AuthSystem.updateProfileName(input.value);
-
-          status.textContent = result.message;
-          status.classList.toggle('error', !result.ok);
-
-          if (result.ok) {
-            input.blur();
+        document.addEventListener('click', (e) => {
+          const headerAuth = document.getElementById('top-auth-node');
+          if (!AuthSystem.isProfileEditorOpen || !headerAuth) return;
+          if (!headerAuth.contains(e.target)) {
+            AuthSystem.setProfileEditorOpen(false);
           }
         });
 
