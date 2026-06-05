@@ -1,0 +1,6 @@
+{
+  "name": "Flappy Bird Clone",
+  "description": "A fully functional neon-themed Flappy Bird clone with synthesized audio effects, smooth controls, and local and mock global leaderboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

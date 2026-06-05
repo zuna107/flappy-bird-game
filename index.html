@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flappy Bird Grid - Premium Runner</title>
+    <!-- Tailwind CSS (for modern UI overlays and fluid layout) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              game: ['"Outfit"', 'sans-serif'],
+              sans: ['"Outfit"', 'sans-serif'],
+              mono: ['"Share Tech Mono"', 'monospace'],
+            },
+            colors: {
+              neonGreen: '#22c55e',
+              neonPink: '#f43f5e',
+              neonBlue: '#38bdf8',
+              darkBg: '#020617',
+              glassBg: 'rgba(15, 23, 42, 0.85)',
+            }
+          }
+        }
+      }
+    </script>
+    <!-- Google Fonts CDNs -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <!-- Global Style Rules for Premium styling and glassmorphism -->
+    <style>
+      /* Retro scanline effect on canvas and overlays */
+      .scanlines {
+        position: relative;
+        overflow: hidden;
+      }
+      .scanlines::before {
+        content: " ";
+        display: block;
+        position: absolute;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.01), rgba(0, 0, 0, 0.03), rgba(255, 255, 255, 0.01));
+        z-index: 10;
+        background-size: 100% 4px, 6px 100%;
+        pointer-events: none;
+      }
+
+      /* Glowing drop-shadows and borders */
+      .neon-border-green {
+        border-color: #22c55e;
+        box-shadow: 0 0 10px rgba(34, 197, 148, 0.2), inset 0 0 10px rgba(34, 197, 148, 0.1);
+      }
+      .neon-border-pink {
+        border-color: #f43f5e;
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.2), inset 0 0 10px rgba(244, 63, 94, 0.1);
+      }
+      .neon-text-green {
+        text-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+      }
+      .neon-text-pink {
+        text-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+      }
+      .neon-text-blue {
+        text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+      }
+
+      /* Hide native scrollbar for immersive style */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.5);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
+
+      /* Shimmer Animations */
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .shimmer {
+        position: relative;
+        overflow: hidden;
+      }
+      .shimmer::after {
+        content: '';
+        position: absolute;
+        top: 0; right: 0; bottom: 0; left: 0;
+        background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.1), transparent);
+        transform: translateX(-100%);
+        animation: shimmer 3s infinite;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-slate-200 min-h-screen flex flex-col justify-between overflow-x-hidden antialiased font-sans">
+    
+    <!-- HEADER BAR -->
+    <header class="w-full px-6 py-4 flex justify-between items-center bg-slate-950/80 backdrop-blur-md border-b border-slate-850 border-slate-900 z-40">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-sky-500 flex items-center justify-center font-bold text-slate-950 shadow-lg animate-pulse">⚡</div>
+        <div>
+          <h1 class="font-sans font-black text-xs md:text-sm tracking-wider text-white uppercase italic">
+            FLAPPY <span class="text-green-500">GRID</span>
+          </h1>
+          <p class="font-sans text-[10px] text-slate-400 tracking-widest uppercase font-bold mt-0.5">SOPHISTICATED RUNNER</p>
+        </div>
+      </div>
+
+      <!-- Auth Action Top Right -->
+      <div id="top-auth-node" class="flex items-center space-x-3">
+        <!-- Will be dynamically updated by JS client -->
+      </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE WORKSPACE -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row items-center justify-center gap-8 relative">
+      
+      <!-- GAME VIEWER PANEL -->
+      <div class="relative flex flex-col items-center">
+        <!-- CANVAS CONTAINER WITH CORRESPONDING SCALING -->
+        <div id="game-frame" class="relative overflow-hidden rounded-2xl border border-slate-800 shadow-2xl bg-gradient-to-b from-[#020617] to-[#0f172a] w-[480px] h-[720px] max-w-full max-h-[80vh] aspect-[2/3] scanlines shadow-[0_0_40px_rgba(34,197,94,0.15)]">
+          
+          <!-- GAME CANVAS -->
+          <canvas id="game-canvas" width="480" height="720" class="w-full h-full block bg-transparent relative z-20"></canvas>
+
+          <!-- HOW TO PLAY TOOLTIP -->
+          <div id="tutorial-overlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-30 transition-opacity duration-300">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-center max-w-[280px] backdrop-blur-sm shadow-xl flex flex-col items-center gap-3">
+              <div class="w-12 h-12 rounded-full border border-green-500/40 flex items-center justify-center text-green-500 animate-bounce">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                </svg>
+              </div>
+              <div>
+                <p class="font-sans font-extrabold text-[10px] tracking-wider text-green-500 leading-relaxed mb-1 uppercase">How to play</p>
+                <p class="font-sans text-xs text-slate-300">Tap / Click inside the screen or press <span class="bg-slate-800 text-green-400 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold">SPACE</span> to flap your wings and navigate security gates!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- DOM OVERLAYS MOUNTED PIXEL-PERFECTLY OVER CANVAS -->
+          
+          <!-- SCREEN: MAIN START MENU -->
+          <div id="menu-screen" class="absolute inset-0 z-30 flex flex-col justify-between p-8 bg-slate-950/95 backdrop-blur-sm transition-all duration-300">
+            <div class="flex flex-col items-center text-center mt-12">
+              <p class="font-sans text-[10px] tracking-widest text-green-500 uppercase font-bold mb-3 animate-pulse">PREMIUM EDITION v1.1</p>
+              <h2 class="font-sans text-4xl font-black italic text-white tracking-tighter leading-tight uppercase">
+                FLAPPY<br><span class="text-green-500">GRID</span>
+              </h2>
+              <p class="text-slate-400 font-sans text-xs mt-4 max-w-[280px]">Fly through tactical security light gates while navigating the dark slate horizon.</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-4 mb-8">
+              <!-- Launch Game Button -->
+              <button id="btn-start" class="w-full max-w-[260px] cursor-pointer bg-white text-slate-950 hover:bg-slate-200 font-sans font-bold text-xs py-4 rounded-xl shadow-lg transition-all duration-200 uppercase tracking-wider outline-none active:scale-95 shimmer">
+                START RUN
+              </button>
+
+              <!-- Simulated Google Login -->
+              <button id="btn-menu-g-login" class="w-full max-w-[260px] cursor-pointer flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-semibold text-xs py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 outline-none active:scale-95">
+                <svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.56-1.56 2.95-3.24 3.51v2.9h5.1c3.07-2.83 4.8-7 4.8-12.04 0-.38-.04-.73-.1-1.1z" fill="#4285F4"/>
+                  <path d="M12.18 21.4c2.83 0 5.21-.94 6.96-2.56l-5.1-2.9c-.83.56-1.89.89-3.04.89-2.73 0-5.06-1.85-5.88-4.32H.1v3c1.73 3.46 5.3 5.89 9.18 5.89z" fill="#34A853"/>
+                  <path d="M6.3 12.51c-.2-.6-.31-1.25-.31-1.92s.11-1.32.31-1.92v-3H.1C-.31 7.22-.53 8.84-.53 10.59s.22 3.37.63 4.92l6.2-3z" fill="#FBBC05"/>
+                  <path d="M12.18 3.51c1.54 0 2.93.53 4.02 1.57l3.02-3.02C17.38.35 14.99-.41 12.18-.41A9.7 9.7 0 003 5.48l6.2 3c.82-2.47 3.15-4.32 5.88-4.32z" fill="#EA4335"/>
+                </svg>
+                Sign in with Google
+              </button>
+
+              <!-- Logged-in User Welcome badge (starts hidden) -->
+              <div id="menu-user-badge" class="hidden flex items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 w-full max-w-[260px] shadow-inner">
+                <div class="flex items-center gap-2.5">
+                  <div id="btn-badge-avatar" class="w-8 h-8 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 font-semibold text-xs flex items-center justify-center">F</div>
+                  <div class="text-left">
+                    <p id="btn-badge-name" class="font-bold text-xs text-slate-100 truncate max-w-[120px]">Felsa Jr</p>
+                    <p class="text-[9px] text-green-500 font-mono font-semibold">ONLINE</p>
+                  </div>
+                </div>
+                <button id="btn-logout" class="text-[10px] text-slate-400 hover:text-red-400 underline decoration-dotted">Logout</button>
+              </div>
+
+              <!-- Quick stats and sound toggle -->
+              <div class="flex items-center justify-between w-full max-w-[260px] text-slate-400 font-mono text-[10px] mt-2 border-t border-slate-900 pt-3">
+                <span class="flex items-center">
+                  BEST: <span id="menu-best-score-badge" class="font-mono text-xs text-white font-bold ml-1.5 transition-all">0</span>
+                </span>
+                <button id="btn-sound-toggle" class="flex items-center space-x-1 hover:text-green-400 cursor-pointer select-none">
+                  <span id="sound-status-icon">🔊</span> <span id="sound-status-text" class="tracking-wide">SOUND ON</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCREEN: GAME OVER DIALOG -->
+          <div id="gameover-screen" class="absolute inset-0 z-30 flex flex-col justify-between p-8 bg-slate-950/95 backdrop-blur-sm hidden transition-all duration-300">
+            <div class="flex flex-col items-center text-center mt-10">
+              <h1 class="text-5xl font-black text-white tracking-tighter mb-2 italic">CRASHED</h1>
+              <p class="text-slate-400 uppercase tracking-widest text-xs mb-6">Game Over</p>
+              
+              <!-- SCORE REPORT CARD -->
+              <div class="mt-2 bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[325px] p-5 shadow-2xl relative">
+                <!-- Golden high score glow -->
+                <div id="new-high-score-glow" class="absolute -top-3 -right-3 hidden flex h-7 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-green-500 px-3 text-[8px] font-sans font-bold text-slate-950 uppercase tracking-widest animate-bounce shadow-[0_0_15px_rgba(34,197,94,0.5)]">
+                  NEW BEST
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <span class="font-sans text-xs text-slate-500 uppercase font-bold">Score</span>
+                  <span id="gameover-score" class="font-mono text-3xl text-green-400 font-bold">0</span>
+                </div>
+                <div class="flex justify-between items-center pt-3">
+                  <span class="font-sans text-xs text-slate-500 uppercase font-bold">Best</span>
+                  <span id="gameover-best" class="font-mono text-3xl text-yellow-400 font-bold">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col items-center gap-3.5 mb-8">
+              <!-- Re-start Run -->
+              <button id="btn-restart" class="w-full max-w-[280px] bg-white text-slate-950 hover:bg-slate-200 font-sans font-bold py-4 rounded-xl transition-colors uppercase tracking-wider outline-none active:scale-95 text-xs">
+                Try Again
+              </button>
+
+              <!-- Optional G Login invitation if not logged in -->
+              <div id="gameover-g-prompt" class="w-full max-w-[280px] text-center flex flex-col items-center">
+                <p class="font-sans text-[11px] text-slate-400 mb-2.5 max-w-[260px] leading-relaxed">Login with Google to upload your high scores to the global leaderboard!</p>
+                <button id="btn-gameover-g-login" class="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-semibold text-xs py-3 px-4 rounded-xl shadow shadow-md active:scale-95 transition-all">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.56-1.56 2.95-3.24 3.51v2.9h5.1c3.07-2.83 4.8-7 4.8-12.04 0-.38-.04-.73-.1-1.1z" fill="#4285F4"/>
+                    <path d="M12.18 21.4c2.83 0 5.21-.94 6.96-2.56l-5.1-2.9c-.83.56-1.89.89-3.04.89-2.73 0-5.06-1.85-5.88-4.32H.1v3c1.73 3.46 5.3 5.89 9.18 5.89z" fill="#34A853"/>
+                    <path d="M6.3 12.51c-.2-.6-.31-1.25-.31-1.92s.11-1.32.31-1.92v-3H.1C-.31 7.22-.53 8.84-.53 10.59s.22 3.37.63 4.92l6.2-3z" fill="#FBBC05"/>
+                    <path d="M12.18 3.51c1.54 0 2.93.53 4.02 1.57l3.02-3.02C17.38.35 14.99-.41 12.18-.41A9.7 9.7 0 003 5.48l6.2 3c.82-2.47 3.15-4.32 5.88-4.32z" fill="#EA4335"/>
+                  </svg>
+                  Connect with Google
+                </button>
+              </div>
+
+              <!-- Leaderboard toggle on Mobile (so they can open slide out drawer) -->
+              <button id="btn-mobile-leaderboard-toggle" class="cursor-pointer font-sans text-xs text-sky-400 hover:text-white uppercase tracking-widest font-semibold mt-1 flex items-center gap-1.5 border border-slate-800 hover:border-slate-700 bg-slate-900 px-4 py-2.5 rounded-lg lg:hidden">
+                🏆 View Global Leaderboard
+              </button>
+            </div>
+          </div>
+
+          <!-- MOCK GOOGLE AUTH POPUP (A stylized chooser exactly duplicating standard accounts.google.com frame) -->
+          <div id="google-auth-popup" class="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6 hidden">
+            <!-- Auth card frame -->
+            <div class="bg-white text-slate-800 rounded-xl w-full max-w-[340px] shadow-2xl p-6 relative flex flex-col align-stretch">
+              <button id="btn-close-google-popup" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 outline-none">✕</button>
+              
+              <!-- Google brand header -->
+              <div class="flex flex-col items-center text-center mt-2 mb-6">
+                <!-- G Logo -->
+                <svg class="h-8 w-8 mb-3" viewBox="0 0 24 24">
+                  <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.56-1.56 2.95-3.24 3.51v2.9h5.1c3.07-2.83 4.8-7 4.8-12.04 0-.38-.04-.73-.1-1.1z" fill="#4285F4"/>
+                  <path d="M12.18 21.4c2.83 0 5.21-.94 6.96-2.56l-5.1-2.9c-.83.56-1.89.89-3.04.89-2.73 0-5.06-1.85-5.88-4.32H.1v3c1.73 3.46 5.3 5.89 9.18 5.89z" fill="#34A853"/>
+                  <path d="M6.3 12.51c-.2-.6-.31-1.25-.31-1.92s.11-1.32.31-1.92v-3H.1C-.31 7.22-.53 8.84-.53 10.59s.22 3.37.63 4.92l6.2-3z" fill="#FBBC05"/>
+                  <path d="M12.18 3.51c1.54 0 2.93.53 4.02 1.57l3.02-3.02C17.38.35 14.99-.41 12.18-.41A9.7 9.7 0 003 5.48l6.2 3c.82-2.47 3.15-4.32 5.88-4.32z" fill="#EA4335"/>
+                </svg>
+                <h3 class="font-sans text-lg font-bold text-slate-800 leading-tight">Sign in with Google</h3>
+                <p class="font-sans text-xs text-slate-500 mt-1">to continue to <b class="text-slate-700">Flappy Grid Premium</b></p>
+              </div>
+
+              <!-- List of mock accounts -->
+              <div class="flex flex-col gap-2 mb-5">
+                <button id="btn-login-felsa" class="w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-[#4285F4] hover:bg-[#4285F4]/5 transition-all outline-none">
+                  <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-green-600 text-white flex items-center justify-center font-bold text-sm tracking-wide shadow-sm">F</div>
+                  <div class="flex-grow overflow-hidden">
+                    <p class="font-sans font-semibold text-xs text-slate-800">Felsa Jr</p>
+                    <p class="font-sans text-[10px] text-slate-500 truncate">felsa.jr1205@gmail.com</p>
+                  </div>
+                  <!-- Secure checkmark icon representing verified flow -->
+                  <div class="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div class="w-2 h-2 bg-[#4285F4] rounded-full"></div>
+                  </div>
+                </button>
+
+                <button id="btn-login-guest" class="w-full text-left flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-[#4285F4] hover:bg-[#4285F4]/5 transition-all outline-none">
+                  <div class="w-9 h-9 rounded-full bg-[#020617] text-white flex items-center justify-center font-bold text-sm shadow-sm font-sans">🤖</div>
+                  <div class="flex-grow overflow-hidden">
+                    <p class="font-sans font-semibold text-xs text-slate-800">Custom Guest Handle</p>
+                    <p class="font-sans text-[10px] text-slate-500 truncate">Create a quick pilot nickname</p>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Terms / security disclaimer matches authentic G-Prompt -->
+              <p class="text-[9px] text-slate-400 font-sans leading-relaxed text-center border-t border-slate-100 pt-3">
+                To continue, Google will share your name, email address, language preference, and profile picture with Flappy Grid. Review their <a href="#" class="text-[#4285F4] hover:underline">Privacy Policy</a> and <a href="#" class="text-[#4285F4] hover:underline">Terms of Service</a>.
+              </p>
+            </div>
+          </div>
+
+          <!-- MOCK LOG-IN SUCCESS TOAST ALERT -->
+          <div id="auth-toast" class="absolute top-4 left-4 right-4 z-50 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 shadow-2xl flex items-center gap-3 backdrop-blur-md opacity-0 pointer-events-none transform -translate-y-4 transition-all duration-300">
+            <div class="w-6 h-6 rounded-full bg-green-500/20 text-green-400 font-bold flex items-center justify-center text-xs">✓</div>
+            <div>
+              <p class="font-bold text-xs text-slate-100 leading-tight">Authorization Successful</p>
+              <p id="auth-toast-desc" class="font-sans text-[10px] text-slate-400 mt-0.5">Welcome aboard, Felsa Jr!</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- LEADERBOARD SLIDE-IN SIDEBAR -->
+      <div id="leaderboard-panel" class="fixed lg:static inset-y-0 right-0 z-40 lg:z-10 w-80 lg:w-96 bg-slate-900 border-l lg:border border-slate-800 lg:rounded-2xl shadow-2xl flex flex-col justify-between overflow-hidden transition-transform duration-300 transform translate-x-full lg:translate-x-0 h-full lg:h-[720px] max-h-screen lg:max-h-[80vh]">
+        
+        <!-- Leaderboard Header inside Panel -->
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/85">
+          <div class="flex items-center space-x-2.5">
+            <h2 class="font-sans text-sm font-bold text-white tracking-wide uppercase">Leaderboard</h2>
+            <div class="px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] font-bold rounded border border-green-500/20 uppercase tracking-widest animate-pulse">LIVE</div>
+          </div>
+          <!-- Close button on Mobile boards -->
+          <button id="btn-close-leaderboard" class="lg:hidden text-slate-400 hover:text-white px-2.5 py-1 text-xs bg-slate-800 rounded-md border border-slate-700">
+            Close ✕
+          </button>
+        </div>
+
+        <div class="flex-grow flex flex-col justify-between relative overflow-y-auto">
+          
+          <!-- LOCKED SCREEN COVER (Shown only if NOT logged in) -->
+          <div id="leaderboard-lock-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-30 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+            <div class="w-14 h-14 rounded-full bg-slate-800/50 border border-slate-700 flex items-center justify-center text-xl mb-4 text-slate-300">🔒</div>
+            <h3 class="font-sans text-xs font-bold text-white tracking-widest uppercase mb-2">LEADERBOARD LOCKED</h3>
+            <p class="text-xs text-slate-400 max-w-[240px] leading-relaxed mb-6 font-sans">Connect your Google account to track global standings, log stats, and record your performance runs.</p>
+            <button id="btn-lock-login" class="w-full max-w-[200px] text-center flex items-center justify-center gap-2 bg-white hover:bg-slate-200 text-slate-950 font-bold text-xs py-3.5 px-4 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all outline-none">
+              <svg class="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.56-1.56 2.95-3.24 3.51v2.9h5.1c3.07-2.83 4.8-7 4.8-12.04 0-.38-.04-.73-.1-1.1z" fill="#4285F4"/>
+                <path d="M12.18 21.4c2.83 0 5.21-.94 6.96-2.56l-5.1-2.9c-.83.56-1.89.89-3.04.89-2.73 0-5.06-1.85-5.88-4.32H.1v3c1.73 3.46 5.3 5.89 9.18 5.89z" fill="#34A853"/>
+                <path d="M6.3 12.51c-.2-.6-.31-1.25-.31-1.92s.11-1.32.31-1.92v-3H.1C-.31 7.22-.53 8.84-.53 10.59s.22 3.37.63 4.92l6.2-3z" fill="#FBBC05"/>
+                <path d="M12.18 3.51c1.54 0 2.93.53 4.02 1.57l3.02-3.02C17.38.35 14.99-.41 12.18-.41A9.7 9.7 0 003 5.48l6.2 3c.82-2.47 3.15-4.32 5.88-4.32z" fill="#EA4335"/>
+              </svg>
+              Login to Unlock
+            </button>
+          </div>
+
+          <!-- UNLOCKED RANK LIST -->
+          <div class="p-6 space-y-3 w-full">
+            <div class="flex justify-between font-mono text-[9px] tracking-wider text-slate-500 uppercase border-b border-slate-800 pb-2">
+              <span>RANK | PILOT</span>
+              <span>RECORD SCORE</span>
+            </div>
+            
+            <div id="leaderboard-list-container" class="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+              <!-- Dynamically populated rows inside JS -->
+            </div>
+
+            <!-- LOCAL HISTORY MINI WIDGET FROM DESIGN SPECS -->
+            <div class="mt-4 bg-slate-800/20 rounded-xl p-4 border border-slate-800">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Local History Status</p>
+              </div>
+              <div class="flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-800/40 pb-1.5Packed">
+                <span>Recent Run Session</span>
+                <span id="recent-session-pts" class="font-mono text-slate-300 font-bold">0 pts</span>
+              </div>
+              <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1.5 pb-1.5 border-b border-slate-800/40">
+                <span>Yesterday Best Run</span>
+                <span id="yesterday-session-pts" class="font-mono text-slate-300">12 pts</span>
+              </div>
+              <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1.5">
+                <span>All-Time Streak</span>
+                <span id="all-time-streak-pts" class="font-mono text-green-500 font-bold">1 session</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom account summary bar -->
+          <div id="leaderboard-unlocked-footer" class="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center text-slate-400 text-xs hidden">
+            <div class="flex items-center space-x-2">
+              <div id="footer-user-avatar" class="w-7 h-7 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 font-semibold text-xs flex items-center justify-center font-sans font-bold">F</div>
+              <span id="footer-user-name" class="font-bold text-slate-200 text-[11px] truncate max-w-[120px]">Felsa Jr</span>
+            </div>
+            <button id="btn-leaderboard-logout" class="text-[10px] text-slate-400 hover:text-red-400 hover:underline">Sign out</button>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <!-- FOOTER CREDITS -->
+    <footer class="w-full text-center py-4 bg-slate-950 border-t border-slate-900 z-40">
+      <p class="font-sans text-[11px] text-slate-500 tracking-wider uppercase font-bold">
+        GRID PREMIUM RUNNER • OFFLINE AUDIO SYNTH • RESPONSIVE CANVAS INTERACTION
+      </p>
+    </footer>
+
+    <!-- BACKGROUND FLOATING CHIPS -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-transparent">
+      <!-- Ambient purple or pink glowing blurred blobs -->
+      <div class="absolute top-[20%] left-[10%] w-72 h-72 bg-emerald-500/5 rounded-full filter blur-[100px] animate-pulse"></div>
+      <div class="absolute bottom-[20%] right-[10%] w-96 h-96 bg-slate-500/5 rounded-full filter blur-[120px] animate-pulse"></div>
+    </div>
+
+    <!-- ========================================== -->
+    <!--          GAME ENGINE SOURCE CODE           -->
+    <!-- ========================================== -->
+    <script>
+      // ==========================================
+      // 1. CONFIGURATION CONSTANTS
+      // ==========================================
+      const CONFIG = {
+        canvasWidth: 480,
+        canvasHeight: 720,
+        
+        // Physics constants
+        gravity: 0.36,          // Falling speed acceleration per frame
+        clampedFallSpeed: 9.0,  // Max falling velocity to avoid tunneling
+        flapStrength: -6.8,     // Upward impulse triggered on flap action
+        
+        // Pipe Spawning
+        pipeSpeedBase: 2.22,    // Scroller velocity at start
+        pipeSpeedMax: 4.5,      // Cap velocity to keep it playable
+        pipeGapBase: 165,       // Space buffer between gates at start
+        pipeGapMin: 125,        // Tightest gateway
+        pipeWidth: 70,          // Neon metal pipe segment thickness
+        pipeSpawnInterval: 140, // Frequency index count for gate creation (frames)
+        
+        // Level Geometry
+        groundHeightY: 660,     // Floor vertical barrier level
+        
+        // Bird Parameters
+        birdSpawnX: 130,        // Horizontal position grid coordinate
+        birdRadius: 15,          // Radius for spatial collision
+      };
+
+      // ==========================================
+      // 2. STATE CONTROLLERS & ENGINE VARIABLES
+      // ==========================================
+      const GAME_STATES = {
+        MENU: 'state_menu',
+        PLAYING: 'state_playing',
+        DEAD: 'state_dead'
+      };
+
+      let state = {
+        current: GAME_STATES.MENU,
+        frameNum: 0,
+        score: 0,
+        highScore: parseInt(localStorage.getItem('flappy_bird_local_high_score')) || 0,
+        isNewHighScoreTriggered: false,
+        soundEnabled: true,
+        
+        // Gameplay Entities
+        bird: {
+          x: CONFIG.birdSpawnX,
+          y: CONFIG.canvasHeight / 2 - 50,
+          velocity: 0,
+          angle: 0,
+          radius: CONFIG.birdRadius,
+          wingPhase: 0,
+          lastFlapFrame: 0,
+          targetTilt: 0,
+        },
+        pipes: [],
+        particles: [],
+        stars: [],
+        sceneryShiftX: 0,
+        groundShiftX: 0
+      };
+
+      // Simulated leaderboard initial list database
+      const DEF_LEADERBOARD = [
+        {name: "Antigravity AI", score: 42},
+        {name: "Gemini Pro", "score": 35},
+        {name: "SpeedyFeather", "score": 28},
+        {name: "FlapMaster99", "score": 21},
+        {name: "PixelBird", "score": 15},
+        {name: "NeonCoder", "score": 12},
+        {name: "CloudJumper", "score": 9},
+        {name: "Chippy", "score": 7},
+        {name: "Felsa Jr", "score": 5, isMockUser: true},
+        {name: "NoobFlapper", "score": 2}
+      ];
+
+      // ==========================================
+      // 3. SYNTHESIZED SOUND SYSTEM (WEB AUDIO)
+      // ==========================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+        }
+
+        init() {
+          if (this.ctx) return;
+          try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          } catch (e) {
+            console.warn("Web Audio API is not supported in this browser.", e);
+          }
+        }
+
+        playFlap() {
+          if (!state.soundEnabled) return;
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          try {
+            const now = this.ctx.currentTime;
+            
+            // Sweep frequency oscillator for cyber flap sound
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(140, now);
+            osc.frequency.exponentialRampToValueAtTime(750, now + 0.08);
+            
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.08);
+          } catch(err) { console.error(err); }
+        }
+
+        playScore() {
+          if (!state.soundEnabled) return;
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          try {
+            const now = this.ctx.currentTime;
+            
+            // Sweet cyber double chime
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now); // A5 note
+            osc.frequency.setValueAtTime(1318.51, now + 0.06); // E6 note
+            
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.setValueAtTime(0.06, now + 0.06);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.25);
+          } catch(err) { console.error(err); }
+        }
+
+        playHit() {
+          if (!state.soundEnabled) return;
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.16);
+            
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.16);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.16);
+          } catch(err) { console.error(err); }
+        }
+
+        playFall() {
+          if (!state.soundEnabled) return;
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.linearRampToValueAtTime(30, now + 0.4);
+            
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.4);
+          } catch(err) { console.error(err); }
+        }
+
+        playHighScoreFanfare() {
+          if (!state.soundEnabled) return;
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          try {
+            const now = this.ctx.currentTime;
+            // Success melody
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+            const noteDur = 0.08;
+            
+            notes.forEach((freq, index) => {
+              const ringTime = now + index * noteDur;
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              
+              osc.type = 'square';
+              osc.frequency.setValueAtTime(freq, ringTime);
+              
+              gain.gain.setValueAtTime(0.04, ringTime);
+              gain.gain.linearRampToValueAtTime(0.001, ringTime + noteDur);
+              
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              
+              osc.start(ringTime);
+              osc.stop(ringTime + noteDur);
+            });
+          } catch(err) { console.error(err); }
+        }
+      }
+
+      const sounds = new SoundEngine();
+
+      // ==========================================
+      // 4. MOCK AUTHENTICATION ENVIRONMENT (GOOGLE)
+      // ==========================================
+      const AuthSystem = {
+        // Mock profile values matching client variables or defaults
+        profile: {
+          email: "felsa.jr1205@gmail.com",
+          name: "Felsa Jr",
+          avatar: "F",
+          loggedIn: false
+        },
+
+        init() {
+          // Check localStorage status to sustain authorization across refreshes
+          const savedActiveUser = localStorage.getItem('fb_user_loggedIn');
+          if (savedActiveUser === 'true') {
+            this.profile.loggedIn = true;
+            this.profile.email = localStorage.getItem('fb_user_email') || "felsa.jr1205@gmail.com";
+            this.profile.name = localStorage.getItem('fb_user_name') || "Felsa Jr";
+            this.profile.avatar = this.profile.name.charAt(0).toUpperCase();
+          }
+          this.syncUI();
+        },
+
+        login(type) {
+          // Simulated authorization process delay
+          showModal(false); // Hide the modal selection card
+          
+          let targetName = "Felsa Jr";
+          let targetEmail = "felsa.jr1205@gmail.com";
+
+          if (type === 'guest') {
+            const randomID = Math.floor(100 + Math.random() * 900);
+            const promptName = prompt("Enter nickname for CYBER GRID:", `Pilot_${randomID}`);
+            if (!promptName) return; // User cancelled
+            targetName = promptName.trim() ? promptName.substring(0, 12) : `Pilot_${randomID}`;
+            targetEmail = `${targetName.toLowerCase().replace(/\s+/g,'')}@grid.io`;
+          }
+
+          this.profile.loggedIn = true;
+          this.profile.name = targetName;
+          this.profile.email = targetEmail;
+          this.profile.avatar = targetName.charAt(0).toUpperCase();
+
+          // Write state back to persistent client storage
+          localStorage.setItem('fb_user_loggedIn', 'true');
+          localStorage.setItem('fb_user_name', targetName);
+          localStorage.setItem('fb_user_email', targetEmail);
+
+          // Pop customized Welcome Alert Toast
+          showWelcomeToast(targetName);
+
+          // Update general UI nodes
+          this.syncUI();
+          
+          // Re-populate and sort simulated Hall of Game with current records
+          LeaderboardModel.submitRunScore(state.score); 
+        },
+
+        logout() {
+          this.profile.loggedIn = false;
+          localStorage.removeItem('fb_user_loggedIn');
+          localStorage.removeItem('fb_user_name');
+          localStorage.removeItem('fb_user_email');
+          
+          this.syncUI();
+        },
+
+        syncUI() {
+          const authBadgeMain = document.getElementById('menu-user-badge');
+          const loginBtnMain = document.getElementById('btn-menu-g-login');
+          const topAuthNode = document.getElementById('top-auth-node');
+          const lockPanel = document.getElementById('leaderboard-lock-overlay');
+          const unlockedFooter = document.getElementById('leaderboard-unlocked-footer');
+          const gameoverBtnG = document.getElementById('gameover-g-prompt');
+
+          if (this.profile.loggedIn) {
+            // Unlocked state elements visible
+            authBadgeMain.classList.remove('hidden');
+            loginBtnMain.classList.add('hidden');
+            if (lockPanel) lockPanel.classList.add('hidden');
+            if (unlockedFooter) unlockedFooter.classList.remove('hidden');
+            if (gameoverBtnG) gameoverBtnG.classList.add('hidden');
+
+            document.getElementById('btn-badge-name').innerText = this.profile.name;
+            document.getElementById('btn-badge-avatar').innerText = this.profile.avatar;
+            document.getElementById('footer-user-name').innerText = this.profile.name;
+            document.getElementById('footer-user-avatar').innerText = this.profile.avatar;
+
+            // Display in Top Right Header Bar
+            topAuthNode.innerHTML = `
+              <div class="flex items-center space-x-2.5 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shadow-inner">
+                <span class="w-6 h-6 rounded-full bg-gradient-to-tr from-neonGreen to-neonBlue text-darkBg font-bold text-xs flex items-center justify-center">${this.profile.avatar}</span>
+                <span class="text-xs text-slate-300 font-semibold font-sans hidden sm:inline">${this.profile.name}</span>
+                <button onclick="AuthSystem.logout()" class="text-[10.5px] font-medium text-neonPink hover:underline pl-1 cursor-pointer">Sign out</button>
+              </div>
+            `;
+          } else {
+            // Locked / guest state elements visible
+            authBadgeMain.classList.add('hidden');
+            loginBtnMain.classList.remove('hidden');
+            if (lockPanel) lockPanel.classList.remove('hidden');
+            if (unlockedFooter) unlockedFooter.classList.add('hidden');
+            if (gameoverBtnG) gameoverBtnG.classList.remove('hidden');
+
+            topAuthNode.innerHTML = `
+              <button onclick="showModal(true)" class="cursor-pointer flex items-center gap-2.5 bg-white hover:bg-slate-150 text-[#1f2937] font-semibold text-xs py-2 px-3.5 rounded-xl shadow-md transition-all">
+                <svg class="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.56-1.56 2.95-3.24 3.51v2.9h5.1c3.07-2.83 4.8-7 4.8-12.04 0-.38-.04-.73-.1-1.1z" fill="#4285F4"/>
+                </svg>
+                Sign In
+              </button>
+            `;
+          }
+
+          // Force fresh fetch of statistics rankings
+          LeaderboardModel.refreshDOM();
+        }
+      };
+
+      // ==========================================
+      // 5. LOCAL-STORAGE DYNAMIC HALL OF GAME MODEL
+      // ==========================================
+      const LeaderboardModel = {
+        getScores() {
+          let list = localStorage.getItem('flappy_bird_leaderboard_simulated');
+          if (!list) {
+            localStorage.setItem('flappy_bird_leaderboard_simulated', JSON.stringify(DEF_LEADERBOARD));
+            return DEF_LEADERBOARD;
+          }
+          return JSON.parse(list);
+        },
+
+        submitRunScore(score) {
+          let players = this.getScores();
+          let playerName = AuthSystem.profile.loggedIn ? AuthSystem.profile.name : "Guest Pilot";
+          
+          if (!AuthSystem.profile.loggedIn) {
+            // Don't merge guest stats on global leaderboard
+            return;
+          }
+
+          // Check if Felsa Jr or local user already has high record
+          let userRow = players.find(p => p.name === playerName || (AuthSystem.profile.email === "felsa.jr1205@gmail.com" && p.isMockUser));
+          
+          if (userRow) {
+            if (score > userRow.score) {
+              userRow.score = score;
+              // Clean mock flags if standard profile saves
+              userRow.name = playerName;
+              delete userRow.isMockUser;
+            }
+          } else {
+            // Create new entry row
+            players.push({name: playerName, score: score});
+          }
+
+          // Sort descending, limit top 10
+          players.sort((a, b) => b.score - a.score);
+          players = players.slice(0, 10);
+
+          localStorage.setItem('flappy_bird_leaderboard_simulated', JSON.stringify(players));
+          this.refreshDOM();
+        },
+
+        refreshDOM() {
+          const container = document.getElementById('leaderboard-list-container');
+          if (!container) return;
+
+          const entries = this.getScores();
+          const activeUser = AuthSystem.profile.name;
+          
+          container.innerHTML = '';
+          
+          entries.forEach((row, idx) => {
+            const rank = idx + 1;
+            const isSelf = AuthSystem.profile.loggedIn && (row.name === activeUser || (row.isMockUser && activeUser === "Felsa Jr"));
+            
+            // Highlight current top ranks with glowing tags
+            let medalColorClass = "text-slate-400";
+            if (rank === 1) medalColorClass = "text-yellow-400 font-bold neon-text-blue";
+            else if (rank === 2) medalColorClass = "text-slate-200 font-bold";
+            else if (rank === 3) medalColorClass = "text-amber-600 font-bold";
+
+            const itemNode = document.createElement('div');
+            itemNode.className = `flex justify-between items-center px-3.5 py-2.5 rounded-xl border transition-all ${
+              isSelf 
+                ? 'bg-neonGreen/10 border-neonGreen/40 shadow-[0_0_15px_rgba(0,255,204,0.1)]' 
+                : 'bg-white/5 border-white/5 hover:bg-white/10'
+            }`;
+
+            itemNode.innerHTML = `
+              <div class="flex items-center space-x-3 overflow-hidden">
+                <span class="font-game text-[9px] ${medalColorClass} w-5">#${rank}</span>
+                <span class="font-sans text-xs ${isSelf ? 'text-neonGreen font-bold' : 'text-slate-200'} truncate max-w-[140px]">
+                  ${row.name} ${isSelf ? '<span class="text-[9px] bg-neonGreen/20 px-1 rounded font-mono ml-1 font-bold">YOU</span>' : ''}
+                </span>
+              </div>
+              <span class="font-game text-[10px] ${isSelf ? 'text-neonGreen neon-text-green' : 'text-slate-300'} font-black">${row.score}</span>
+            `;
+            container.appendChild(itemNode);
+          });
+        }
+      };
+
+
+      // ==========================================
+      // 6. CANVAS PARALLAX GRAPHICS ENGINE
+      // ==========================================
+      const canvas = document.getElementById('game-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Setup initial stars & scenery
+      function setupWorldEntities() {
+        state.stars = [];
+        for (let i = 0; i < 40; i++) {
+          state.stars.push({
+            x: Math.random() * CONFIG.canvasWidth,
+            y: Math.random() * CONFIG.groundHeightY - 80,
+            size: Math.random() * 1.8 + 0.5,
+            opacity: Math.random() * 0.7 + 0.2,
+            speed: Math.random() * 0.15 + 0.05
+          });
+        }
+      }
+
+      function spawnParticles(x, y, count, colorType) {
+        // Neon splash bursts
+        const colors = colorType === 'blue' 
+          ? ['#00ccff', '#00ffcc', '#ffffff'] 
+          : colorType === 'pink' 
+            ? ['#ff007f', '#ff80bf', '#ffffff'] 
+            : ['#ffd54f', '#ffb300', '#ffffff']; // Gold bird feather trail
+
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const force = Math.random() * 3.5 + 1.0;
+          state.particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * force,
+            vy: Math.sin(angle) * force,
+            radius: Math.random() * 3.5 + 1.2,
+            alpha: 1.0,
+            decay: Math.random() * 0.025 + 0.015,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+      }
+
+      function drawStars() {
+        state.stars.forEach(star => {
+          // Parallax movement based heavily on active play
+          if (state.current === GAME_STATES.PLAYING) {
+            star.x -= star.speed;
+            if (star.x < 0) {
+              star.x = CONFIG.canvasWidth;
+              star.y = Math.random() * CONFIG.groundHeightY - 80;
+            }
+          }
+          ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      function drawHorizonSynthSun() {
+        const sx = CONFIG.canvasWidth / 2;
+        const sy = CONFIG.groundHeightY - 10;
+        const radius = 100;
+        
+        // Classic horizontal-sliced neon synthwave sun on lower horizon
+        const grad = ctx.createLinearGradient(sx, sy - radius, sx, sy);
+        grad.addColorStop(0, '#ff007f');
+        grad.addColorStop(0.5, '#ff8000');
+        grad.addColorStop(1, '#090a15');
+        
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, Math.PI, 0, false);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Slice details
+        ctx.fillStyle = '#090a15';
+        for (let i = sy - radius + 15; i < sy; i += 12) {
+          const thickness = Math.max(1, (i - (sy - radius)) * 0.07);
+          ctx.fillRect(0, i, CONFIG.canvasWidth, thickness);
+        }
+        ctx.restore();
+      }
+
+      function drawSynthSkyline() {
+        // Draw cyber buildings scrolling slowly in background
+        if (state.current === GAME_STATES.PLAYING) {
+          state.sceneryShiftX = (state.sceneryShiftX + 0.4) % CONFIG.canvasWidth;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = '#00ccff';
+        ctx.lineWidth = 1;
+
+        // Draw 2 sets of grids to ensure smooth circular wrap
+        for (let loop = 0; loop < 2; loop++) {
+          const offsetX = -state.sceneryShiftX + loop * CONFIG.canvasWidth;
+          
+          ctx.beginPath();
+          // Height layers
+          const bW = 48; // building width
+          const points = [
+            {w: 35, h: 100}, {w: 50, h: 140}, {w: 40, h: 80}, {w: 60, h: 180},
+            {w: 45, h: 120}, {w: 30, h: 90}, {w: 55, h: 220}, {w: 40, h: 110},
+            {w: 50, h: 130}, {w: 60, h: 70}, {w: 45, h: 150}
+          ];
+
+          let currX = offsetX;
+          ctx.moveTo(currX, CONFIG.groundHeightY);
+          
+          points.forEach(p => {
+            ctx.lineTo(currX, CONFIG.groundHeightY - p.h);
+            ctx.lineTo(currX + p.w, CONFIG.groundHeightY - p.h);
+            currX += p.w;
+          });
+          
+          ctx.lineTo(currX, CONFIG.groundHeightY);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawNeonGridGround() {
+        if (state.current === GAME_STATES.PLAYING) {
+          const currentSpeedVal = Math.min(CONFIG.pipeSpeedMax, CONFIG.pipeSpeedBase + state.score * 0.05);
+          state.groundShiftX = (state.groundShiftX + currentSpeedVal) % 40;
+        }
+
+        const horizonY = CONFIG.groundHeightY;
+        const gH = CONFIG.canvasHeight - horizonY; // 60px height
+
+        // Draw solid background layer for ground
+        ctx.fillStyle = '#060710';
+        ctx.fillRect(0, horizonY, CONFIG.canvasWidth, gH);
+
+        // Neon high glow edge
+        ctx.strokeStyle = '#ff007f';
+        ctx.lineWidth = 3;
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ff007f';
+        ctx.beginPath();
+        ctx.moveTo(0, horizonY);
+        ctx.lineTo(CONFIG.canvasWidth, horizonY);
+        ctx.stroke();
+        ctx.restore();
+
+        // Perspektive Depth Grid Lines
+        ctx.strokeStyle = 'rgba(255, 0, 127, 0.45)';
+        ctx.lineWidth = 1;
+
+        // Diagonal vanishing stripes
+        const lineCount = 14;
+        for (let i = -4; i <= lineCount + 4; i++) {
+          const progress = i / lineCount;
+          // Vanished perspective lines
+          const hX1 = progress * CONFIG.canvasWidth;
+          const hX2 = (progress - 0.5) * CONFIG.canvasWidth * 2.5 + CONFIG.canvasWidth / 2;
+          ctx.beginPath();
+          ctx.moveTo(hX1, horizonY);
+          ctx.lineTo(hX2, CONFIG.canvasHeight);
+          ctx.stroke();
+        }
+
+        // Horizontal moving stripes
+        const stripeOffset = state.groundShiftX;
+        ctx.strokeStyle = 'rgba(255, 0, 127, 0.4)';
+        for (let y = horizonY; y <= CONFIG.canvasHeight; y += 12) {
+          const screenY = y + (stripeOffset * 0.3);
+          if (screenY >= horizonY && screenY <= CONFIG.canvasHeight) {
+            ctx.beginPath();
+            ctx.moveTo(0, screenY);
+            ctx.lineTo(CONFIG.canvasWidth, screenY);
+            ctx.stroke();
+          }
+        }
+      }
+
+      function drawPipes() {
+        state.pipes.forEach(pipe => {
+          ctx.save();
+          
+          // Draw Neon Light Gates as beautiful glow rectangles
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#00ffcc';
+          ctx.fillStyle = 'rgba(0, 255, 204, 0.08)';
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = '#00ffcc';
+
+          // 1. Upper Pipe
+          ctx.beginPath();
+          ctx.roundRect(pipe.x, -20, CONFIG.pipeWidth, pipe.top + 20, [0, 0, 10, 10]);
+          ctx.fill();
+          ctx.stroke();
+
+          // Highlight metallic cylinder rings
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
+          ctx.fillRect(pipe.x + 4, pipe.top - 12, CONFIG.pipeWidth - 8, 4);
+          ctx.restore();
+
+          // 2. Lower Pipe
+          ctx.beginPath();
+          ctx.roundRect(pipe.x, pipe.bottom, CONFIG.pipeWidth, CONFIG.groundHeightY - pipe.bottom + 20, [10, 10, 0, 0]);
+          ctx.fill();
+          ctx.stroke();
+
+          // Highlight metallic cylinder rings
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(0, 255, 204, 0.4)';
+          ctx.fillRect(pipe.x + 4, pipe.bottom + 8, CONFIG.pipeWidth - 8, 4);
+          ctx.restore();
+
+          // 3. Score light fence connector lines (Draw neon grid fence inside the gap)
+          if (!pipe.passed) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 204, 255, 0.35)';
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#00ccff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 6]);
+            ctx.beginPath();
+            ctx.moveTo(pipe.x + CONFIG.pipeWidth / 2, pipe.top);
+            ctx.lineTo(pipe.x + CONFIG.pipeWidth / 2, pipe.bottom);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          ctx.restore();
+        });
+      }
+
+      function drawBird() {
+        const b = state.bird;
+        ctx.save();
+        
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.angle);
+
+        // Glow Aura
+        const auraAlpha = 0.3 + Math.sin(state.frameNum * 0.15) * 0.1;
+        const mainGlowColor = state.current === GAME_STATES.DEAD ? '#ff007f' : '#00ffcc';
+        
+        ctx.save();
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = mainGlowColor;
+        ctx.fillStyle = mainGlowColor;
+        ctx.globalAlpha = auraAlpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, b.radius + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Draw bird body gradient
+        const grad = ctx.createRadialGradient(-3, -3, 2, 0, 0, b.radius);
+        if (state.current === GAME_STATES.DEAD) {
+          grad.addColorStop(0, '#ff66b2');
+          grad.addColorStop(1, '#ff007f'); // Magenta dead mode
+        } else {
+          grad.addColorStop(0, '#fff59d');
+          grad.addColorStop(0.7, '#ffd54f'); // Cyan gradient highlight
+          grad.addColorStop(1, '#ffb300');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Stroke neon border for high clarity
+        ctx.strokeStyle = state.current === GAME_STATES.DEAD ? '#ff007f' : '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Draw Eye
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(5, -4, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (state.current === GAME_STATES.DEAD) {
+          // Dead eyes: high cross 'X X'
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(3.5, -5.5); ctx.lineTo(6.5, -2.5);
+          ctx.moveTo(6.5, -5.5); ctx.lineTo(3.5, -2.5);
+          ctx.stroke();
+        } else {
+          // Dynamic pupil that changes offset based on movement
+          ctx.fillStyle = '#0a0d1a';
+          ctx.beginPath();
+          const lookDirX = Math.max(-1.5, Math.min(1.5, b.velocity * 0.3));
+          ctx.arc(6 + lookDirX, -4, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Orange Beak
+        ctx.fillStyle = '#ff7043';
+        ctx.strokeStyle = '#d84315';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(11, -2);
+        ctx.lineTo(19, 0);
+        ctx.lineTo(10, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Flapping Animated Wings
+        ctx.save();
+        ctx.translate(-5, 0);
+        const wingOffsetTilt = Math.sin(b.wingPhase) * 1.1; // Flap sweep amplitude
+        ctx.rotate(wingOffsetTilt + b.velocity * 0.08);
+
+        ctx.fillStyle = state.current === GAME_STATES.DEAD ? '#e0e0e0' : '#ffe082';
+        ctx.strokeStyle = '#ffb300';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        state.particles.forEach((p, idx) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= p.decay;
+
+          if (p.alpha <= 0) {
+            state.particles.splice(idx, 1);
+            return;
+          }
+
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+      }
+
+      function drawInGameScoreOverlay() {
+        if (state.current === GAME_STATES.MENU) return;
+
+        // Big retro neon scoreboard at top-mid in playing session
+        ctx.save();
+        ctx.font = '32px "Share Tech Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#00ccff';
+        
+        ctx.fillText(state.score.toString(), CONFIG.canvasWidth / 2, 70);
+
+        // Small indicator of highest local streak
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillStyle = 'rgba(0, 255, 204, 0.7)';
+        ctx.shadowBlur = 0;
+        ctx.fillText(`BEST:${state.highScore}`, CONFIG.canvasWidth / 2, 102);
+        
+        ctx.restore();
+      }
+
+      // ==========================================
+      // 7. GAME PLAYBACK LOOPS & TRIGGERS
+      // ==========================================
+      function updatePhysics() {
+        if (state.current === GAME_STATES.MENU) {
+          // Sinusoidal hover bobbing animation on Start Menu Screen
+          state.bird.y = CONFIG.canvasHeight / 2 - 35 + Math.sin(state.frameNum * 0.08) * 12;
+          state.bird.angle = Math.sin(state.frameNum * 0.08) * 0.12;
+          return;
+        }
+
+        const b = state.bird;
+
+        // Apply gravitational acceleration down
+        b.velocity = Math.min(CONFIG.clampedFallSpeed, b.velocity + CONFIG.gravity);
+        b.y += b.velocity;
+
+        // Calculate dynamic tilt angle matching jump state
+        if (state.current === GAME_STATES.PLAYING) {
+          b.wingPhase += 0.2 + Math.abs(b.velocity) * 0.05;
+          
+          if (b.velocity < 1.0) {
+            // Tilts up
+            b.targetTilt = -0.4;
+          } else {
+            // Tilts down heavily as gravity acceleration pulls
+            b.targetTilt = Math.min(1.2, -0.4 + (b.velocity - 1.0) * 0.18);
+          }
+          // Smooth rotation lerp to make transitions gorgeous
+          b.angle += (b.targetTilt - b.angle) * 0.15;
+          
+          // Emit subtle engine glow spark feathers during fall/flap
+          if (state.frameNum % 3 === 0) {
+            state.particles.push({
+              x: b.x - b.radius + 3,
+              y: b.y + (Math.random() * 8 - 4),
+              vx: -1.5 - Math.random() * 1.5,
+              vy: Math.random() * 0.8 - 0.4,
+              radius: Math.random() * 2 + 1,
+              alpha: 0.8,
+              decay: 0.03,
+              color: 'rgba(255, 213, 79, 0.6)'
+            });
+          }
+        } else if (state.current === GAME_STATES.DEAD) {
+          // Rapid spinning tumble down on collapse check
+          b.angle += 0.12;
+        }
+
+        // Colllision checking: Ground check
+        if (b.y + b.radius >= CONFIG.groundHeightY) {
+          b.y = CONFIG.groundHeightY - b.radius;
+          triggerCrashCollapse();
+        }
+
+        // Ceiling upper bounds check
+        if (b.y - b.radius <= -30) {
+          b.y = -30 + b.radius;
+          triggerCrashCollapse();
+        }
+
+        if (state.current !== GAME_STATES.PLAYING) return;
+
+        // Scroll and spawn obstacle light gates
+        if (state.frameNum % CONFIG.pipeSpawnInterval === 0) {
+          spawnGatePair();
+        }
+
+        const currentSpeedVal = Math.min(CONFIG.pipeSpeedMax, CONFIG.pipeSpeedBase + state.score * 0.05);
+
+        for (let i = state.pipes.length - 1; i >= 0; i--) {
+          const pipe = state.pipes[i];
+          pipe.x -= currentSpeedVal;
+
+          // Score milestone crossover detector
+          if (!pipe.passed && b.x > pipe.x + CONFIG.pipeWidth / 2) {
+            pipe.passed = true;
+            state.score++;
+            sounds.playScore();
+            
+            // Shatter glowing light barrier effect
+            spawnParticles(pipe.x + CONFIG.pipeWidth / 2, (pipe.top + pipe.bottom) / 2, 16, 'blue');
+
+            // Quick celebratory check for high score surpassing
+            if (state.score > state.highScore) {
+              state.highScore = state.score;
+              localStorage.setItem('flappy_bird_local_high_score', state.highScore);
+              
+              if (!state.isNewHighScoreTriggered) {
+                state.isNewHighScoreTriggered = true;
+                sounds.playHighScoreFanfare();
+              }
+            }
+          }
+
+          // Exact circle-to-rectangle neon pipe collision checks
+          if (isBirdIntersectingPipe(b, pipe)) {
+            triggerCrashCollapse();
+          }
+
+          // Discard pipes out of screen bounds
+          if (pipe.x + CONFIG.pipeWidth < 0) {
+            state.pipes.splice(i, 1);
+          }
+        }
+      }
+
+      function spawnGatePair() {
+        // Dynamic pipe gap size narrowing slightly down as difficulty ramps up
+        const difficultyProgress = Math.min(1.0, state.score / 25);
+        const gap = CONFIG.pipeGapBase - (CONFIG.pipeGapBase - CONFIG.pipeGapMin) * difficultyProgress;
+        
+        // Randomize central gate height matching play boundaries
+        const marginY = 82;
+        const playableRangeH = CONFIG.groundHeightY - gap - marginY * 2;
+        const gateTopH = marginY + Math.random() * playableRangeH;
+        
+        state.pipes.push({
+          x: CONFIG.canvasWidth,
+          top: gateTopH,
+          bottom: gateTopH + gap,
+          passed: false
+        });
+      }
+
+      function isBirdIntersectingPipe(bird, pipe) {
+        // Upper Pipe check
+        const uClosestX = Math.max(pipe.x, Math.min(bird.x, pipe.x + CONFIG.pipeWidth));
+        const uClosestY = Math.max(0, Math.min(bird.y, pipe.top));
+        const uDistX = bird.x - uClosestX;
+        const uDistY = bird.y - uClosestY;
+        const uDistSquared = uDistX * uDistX + uDistY * uDistY;
+        if (uDistSquared < bird.radius * bird.radius) return true;
+
+        // Lower Pipe check
+        const lClosestX = Math.max(pipe.x, Math.min(bird.x, pipe.x + CONFIG.pipeWidth));
+        const lClosestY = Math.max(pipe.bottom, Math.min(bird.y, CONFIG.groundHeightY));
+        const lDistX = bird.x - lClosestX;
+        const lDistY = bird.y - lClosestY;
+        const lDistSquared = lDistX * lDistX + lDistY * lDistY;
+        if (lDistSquared < bird.radius * bird.radius) return true;
+
+        return false;
+      }
+
+      function triggerCrashCollapse() {
+        if (state.current === GAME_STATES.DEAD) return;
+        
+        state.current = GAME_STATES.DEAD;
+        sounds.playHit();
+        sounds.playFall();
+        
+        // Spawn big pink splash sparks represent structural wreckage
+        spawnParticles(state.bird.x, state.bird.y, 25, 'pink');
+
+        // Submit records directly
+        LeaderboardModel.submitRunScore(state.score);
+
+        // Slide/Fade game over visual card screen open
+        setTimeout(() => {
+          showGameOverScreen(true);
+        }, 800);
+      }
+
+      function flapJump() {
+        if (state.current === GAME_STATES.MENU) {
+          startGameRun();
+          return;
+        }
+
+        if (state.current === GAME_STATES.DEAD) return;
+
+        state.bird.velocity = CONFIG.flapStrength;
+        sounds.playFlap();
+
+        // Wing rapid up-flap thrust phase reset
+        state.bird.wingPhase = Math.PI;
+
+        // Spawn rapid spark thrust particles downwards
+        for (let i = 0; i < 4; i++) {
+          state.particles.push({
+            x: state.bird.x - state.bird.radius + 3,
+            y: state.bird.y + 4,
+            vx: -2.0 - Math.random() * 2,
+            vy: 2.0 + Math.random() * 1.5,
+            radius: Math.random() * 2.5 + 1.2,
+            alpha: 0.9,
+            decay: 0.04,
+            color: '#ffd54f'
+          });
+        }
+      }
+
+      function startGameRun() {
+        sounds.init();
+        
+        state.current = GAME_STATES.PLAYING;
+        state.score = 0;
+        state.isNewHighScoreTriggered = false;
+        state.pipes = [];
+        state.particles = [];
+        
+        state.bird.x = CONFIG.birdSpawnX;
+        state.bird.y = CONFIG.canvasHeight / 2 - 50;
+        state.bird.velocity = CONFIG.flapStrength;
+        state.bird.angle = 0;
+
+        // Fade tutorial screen out
+        hideTutorialBanner();
+
+        // Switch panel overlay card
+        document.getElementById('menu-screen').classList.add('hidden');
+        showGameOverScreen(false);
+      }
+
+      function resetToMenu() {
+        state.current = GAME_STATES.MENU;
+        state.score = 0;
+        state.pipes = [];
+        state.isNewHighScoreTriggered = false;
+
+        state.bird.x = CONFIG.birdSpawnX;
+        state.bird.y = CONFIG.canvasHeight / 2 - 50;
+        state.bird.velocity = 0;
+        state.bird.angle = 0;
+
+        document.getElementById('menu-best-score-badge').innerText = state.highScore;
+
+        document.getElementById('menu-screen').classList.remove('hidden');
+        showGameOverScreen(false);
+      }
+
+      // ==========================================
+      // 8. MASTER RUNTIME GAME LOOP
+      // ==========================================
+      function mainEngineLoop() {
+        state.frameNum++;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, CONFIG.canvasWidth, CONFIG.canvasHeight);
+
+        // Core Drawing Sequence
+        drawStars();
+        drawHorizonSynthSun();
+        drawSynthSkyline();
+        drawPipes();
+        drawBird();
+        drawParticles();
+        drawNeonGridGround();
+        drawInGameScoreOverlay();
+
+        // Physic Simulation and collision evaluation
+        updatePhysics();
+
+        requestAnimationFrame(mainEngineLoop);
+      }
+
+      // ==========================================
+      // 9. CLIENT INTERACTION UI & DOM LISTENERS
+      // ==========================================
+      
+      function showGameOverScreen(visible) {
+        const screen = document.getElementById('gameover-screen');
+        if (visible) {
+          document.getElementById('gameover-score').innerText = state.score.toString();
+          document.getElementById('gameover-best').innerText = state.highScore.toString();
+          
+          if (state.isNewHighScoreTriggered) {
+            document.getElementById('new-high-score-glow').classList.remove('hidden');
+          } else {
+            document.getElementById('new-high-score-glow').classList.add('hidden');
+          }
+          
+          screen.classList.remove('hidden');
+        } else {
+          screen.classList.add('hidden');
+        }
+      }
+
+      function hideTutorialBanner() {
+        const tut = document.getElementById('tutorial-overlay');
+        tut.style.opacity = '0';
+        setTimeout(() => {
+          tut.style.display = 'none';
+        }, 300);
+      }
+
+      function showModal(visible) {
+        const popup = document.getElementById('google-auth-popup');
+        if (visible) {
+          popup.classList.remove('hidden');
+        } else {
+          popup.classList.add('hidden');
+        }
+      }
+
+      function showWelcomeToast(username) {
+        const toast = document.getElementById('auth-toast');
+        document.getElementById('auth-toast-desc').innerText = `Logged in securely as ${username}`;
+        
+        toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+        toast.classList.add('opacity-100', 'translate-y-0');
+
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+          toast.classList.remove('opacity-100', 'translate-y-0');
+        }, 4000);
+      }
+
+      // Sound active status rendering updating
+      function syncSoundToggleUI() {
+        const statusIcon = document.getElementById('sound-status-icon');
+        const statusText = document.getElementById('sound-status-text');
+        if (state.soundEnabled) {
+          statusIcon.innerText = '🔊';
+          statusText.innerText = 'SOUND ON';
+        } else {
+          statusIcon.innerText = '🔇';
+          statusText.innerText = 'SOUND MUTED';
+        }
+      }
+
+      // Register listener loops
+      window.addEventListener('DOMContentLoaded', () => {
+        setupWorldEntities();
+        AuthSystem.init();
+
+        document.getElementById('menu-best-score-badge').innerText = state.highScore;
+
+        // Button Click handlers
+        document.getElementById('btn-start').addEventListener('click', (e) => {
+          e.stopPropagation();
+          startGameRun();
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', (e) => {
+          e.stopPropagation();
+          startGameRun();
+        });
+
+        // Toggle sound click handlers
+        document.getElementById('btn-sound-toggle').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.soundEnabled = !state.soundEnabled;
+          syncSoundToggleUI();
+          sounds.init();
+        });
+
+        // Accounts list login handlers
+        document.getElementById('btn-login-felsa').addEventListener('click', () => {
+          AuthSystem.login('felsa');
+        });
+        document.getElementById('btn-login-guest').addEventListener('click', () => {
+          AuthSystem.login('guest');
+        });
+        
+        // Open/Close mock Auth login prompts
+        document.getElementById('btn-menu-g-login').addEventListener('click', (e) => {
+          e.stopPropagation();
+          showModal(true);
+        });
+        document.getElementById('btn-close-google-popup').addEventListener('click', () => {
+          showModal(false);
+        });
+        document.getElementById('btn-lock-login').addEventListener('click', () => {
+          showModal(true);
+        });
+        document.getElementById('btn-gameover-g-login').addEventListener('click', (e) => {
+          e.stopPropagation();
+          showModal(true);
+        });
+
+        // Signout click handlers
+        document.getElementById('btn-logout').addEventListener('click', (e) => {
+          e.stopPropagation();
+          AuthSystem.logout();
+        });
+        document.getElementById('btn-leaderboard-logout').addEventListener('click', () => {
+          AuthSystem.logout();
+        });
+
+        // Mobile Sidebar drawers toggle
+        const leaderboardPanel = document.getElementById('leaderboard-panel');
+        document.getElementById('btn-mobile-leaderboard-toggle').addEventListener('click', (e) => {
+          e.stopPropagation();
+          leaderboardPanel.classList.remove('translate-x-full');
+        });
+        document.getElementById('btn-close-leaderboard').addEventListener('click', () => {
+          leaderboardPanel.classList.add('translate-x-full');
+        });
+
+        // Absolute Keyboard spatial flap jumps
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space') {
+            e.preventDefault(); // Guard default scrolling action
+            
+            if (state.current === GAME_STATES.DEAD) {
+              const rect = document.getElementById('gameover-screen');
+              if (!rect.classList.contains('hidden')) {
+                startGameRun();
+              }
+            } else {
+              flapJump();
+            }
+          }
+        });
+
+        // Touch Tap gesture listening directly on frame bounds
+        document.getElementById('game-frame').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          flapJump();
+        }, { passive: false });
+
+        document.getElementById('game-frame').addEventListener('mousedown', (e) => {
+          // If they click on buttons directly let event cascade natively
+          if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+          e.preventDefault();
+          flapJump();
+        });
+
+        // Start animation frame cycles
+        mainEngineLoop();
+      });
+
+      // ==========================================
+      // TODO INTEGRATION BENCHMARK NOTES
+      // ==========================================
+      // TODO: Replace with real Google Client ID
+      // To connect this game to real Google Sign-In, import GIS Client in head:
+      // <script src="https://accounts.google.com/gsi/client" async defer><\/script>
+      // And configure real ID inside JS:
+      // google.accounts.id.initialize({
+      //   client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+      //   callback: (response) => {
+      //     const payload = parseJwtToken(response.credential);
+      //     AuthSystem.profile.name = payload.name;
+      //     AuthSystem.profile.email = payload.email;
+      //     AuthSystem.profile.avatar = payload.picture;
+      //     AuthSystem.syncUI();
+      //   }
+      // });
+      // 
+      // TODO: Connect to real backend API database
+      // Substitute LeaderboardModel localStorage read/writes with actual fetch/post requests:
+      // async function fetchGlobalStats() {
+      //   const res = await fetch('https://your-api.com/v1/leaderboard');
+      //   const data = await res.json();
+      //   return data;
+      // }
+      // async function postScore(score) {
+      //   await fetch('https://your-api.com/v1/scores', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      //     body: JSON.stringify({ score })
+      //   });
+      // }
+    </script>
+  </body>
+</html>
