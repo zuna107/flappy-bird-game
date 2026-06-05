@@ -167,6 +167,49 @@
         margin-bottom: 10px;
       }
 
+      .header-profile-photo-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .header-profile-photo-preview {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .header-profile-photo-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .header-profile-photo-btn {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--text);
+        padding: 8px 12px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .header-profile-photo-btn:hover {
+        border-color: var(--coral);
+        color: var(--coral);
+      }
+
+      .header-profile-photo-btn.danger:hover {
+        border-color: #E45858;
+        color: #E45858;
+      }
+
       .header-profile-form {
         display: flex;
         flex-direction: column;
@@ -224,6 +267,10 @@
         font-size: 11px;
         color: var(--muted);
         margin-top: 2px;
+      }
+
+      .header-profile-file-input {
+        display: none;
       }
 
       .header-avatar {
@@ -1122,6 +1169,13 @@
           return (localStorage.getItem('fb_user_custom_name') || '').trim();
         },
 
+        getCustomPictureForEmail(email) {
+          if (!email) return '';
+          const storedEmail = localStorage.getItem('fb_user_custom_picture_email') || '';
+          if (storedEmail !== email) return '';
+          return localStorage.getItem('fb_user_custom_picture') || '';
+        },
+
         persistProfile() {
           localStorage.setItem('fb_user_loggedIn', this.profile.loggedIn ? 'true' : 'false');
           localStorage.setItem('fb_user_name', this.profile.name);
@@ -1136,7 +1190,7 @@
             this.profile.loggedIn = true;
             this.profile.email = localStorage.getItem('fb_user_email') || '';
             this.profile.name = this.getCustomNameForEmail(this.profile.email) || localStorage.getItem('fb_user_name') || '';
-            this.profile.picture = localStorage.getItem('fb_user_picture') || '';
+            this.profile.picture = this.getCustomPictureForEmail(this.profile.email) || localStorage.getItem('fb_user_google_picture') || localStorage.getItem('fb_user_picture') || '';
           }
           this.syncUI();
           this.initGoogleClient();
@@ -1180,8 +1234,9 @@
 
             this.profile.loggedIn = true;
             this.profile.email = data.email || '';
-            this.profile.picture = data.picture || '';
+            this.profile.picture = this.getCustomPictureForEmail(this.profile.email) || data.picture || '';
             this.profile.name = this.getCustomNameForEmail(this.profile.email) || data.name || '';
+            localStorage.setItem('fb_user_google_picture', data.picture || '');
 
             this.persistProfile();
 
@@ -1230,6 +1285,7 @@
           localStorage.removeItem('fb_user_name');
           localStorage.removeItem('fb_user_email');
           localStorage.removeItem('fb_user_picture');
+          localStorage.removeItem('fb_user_google_picture');
           localStorage.removeItem('fb_access_token');
 
           this.syncUI();
@@ -1252,6 +1308,71 @@
           LeaderboardModel.updateCurrentUserName(cleanedName);
 
           return { ok: true, message: 'Profile name saved.' };
+        },
+
+        async updateProfilePicture(file) {
+          if (!this.profile.loggedIn) {
+            return { ok: false, message: 'Sign in first to edit your profile.' };
+          }
+          if (!file || !file.type || !file.type.startsWith('image/')) {
+            return { ok: false, message: 'Choose an image file.' };
+          }
+
+          try {
+            const optimizedDataUrl = await this._readAndOptimizeProfileImage(file);
+            this.profile.picture = optimizedDataUrl;
+            localStorage.setItem('fb_user_custom_picture', optimizedDataUrl);
+            localStorage.setItem('fb_user_custom_picture_email', this.profile.email);
+            this.persistProfile();
+            this.syncUI();
+            return { ok: true, message: 'Profile photo updated.' };
+          } catch (error) {
+            return { ok: false, message: 'Photo could not be processed.' };
+          }
+        },
+
+        resetProfilePicture() {
+          if (!this.profile.loggedIn) {
+            return { ok: false, message: 'Sign in first to edit your profile.' };
+          }
+
+          localStorage.removeItem('fb_user_custom_picture');
+          localStorage.removeItem('fb_user_custom_picture_email');
+          this.profile.picture = localStorage.getItem('fb_user_google_picture') || '';
+          this.persistProfile();
+          this.syncUI();
+          return { ok: true, message: 'Profile photo reset.' };
+        },
+
+        _readAndOptimizeProfileImage(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const img = new Image();
+              img.onload = () => {
+                const size = 160;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                  reject(new Error('Canvas unavailable'));
+                  return;
+                }
+
+                const sourceSize = Math.min(img.width, img.height);
+                const sourceX = (img.width - sourceSize) / 2;
+                const sourceY = (img.height - sourceSize) / 2;
+
+                ctx.drawImage(img, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+                resolve(canvas.toDataURL('image/jpeg', 0.82));
+              };
+              img.onerror = () => reject(new Error('Image load failed'));
+              img.src = reader.result;
+            };
+            reader.onerror = () => reject(new Error('Read failed'));
+            reader.readAsDataURL(file);
+          });
         },
 
         setProfileEditorOpen(isOpen) {
@@ -1367,6 +1488,40 @@
             form.className = 'header-profile-form';
             form.id = 'profile-name-form';
 
+            const photoRow = document.createElement('div');
+            photoRow.className = 'header-profile-photo-row';
+
+            const photoPreview = document.createElement('div');
+            photoPreview.className = 'header-profile-photo-preview';
+            photoPreview.appendChild(this._renderAvatar(48));
+            photoRow.appendChild(photoPreview);
+
+            const photoActions = document.createElement('div');
+            photoActions.className = 'header-profile-photo-actions';
+
+            const photoInput = document.createElement('input');
+            photoInput.className = 'header-profile-file-input';
+            photoInput.type = 'file';
+            photoInput.accept = 'image/*';
+            photoInput.id = 'profile-photo-input';
+
+            const uploadPhotoBtn = document.createElement('button');
+            uploadPhotoBtn.className = 'header-profile-photo-btn';
+            uploadPhotoBtn.type = 'button';
+            uploadPhotoBtn.textContent = 'Upload photo';
+            uploadPhotoBtn.addEventListener('click', () => photoInput.click());
+            photoActions.appendChild(uploadPhotoBtn);
+
+            const resetPhotoBtn = document.createElement('button');
+            resetPhotoBtn.className = 'header-profile-photo-btn danger';
+            resetPhotoBtn.type = 'button';
+            resetPhotoBtn.textContent = 'Reset photo';
+            photoActions.appendChild(resetPhotoBtn);
+
+            photoActions.appendChild(photoInput);
+            photoRow.appendChild(photoActions);
+            form.appendChild(photoRow);
+
             const inputRow = document.createElement('div');
             inputRow.className = 'header-profile-input-row';
 
@@ -1409,6 +1564,20 @@
                 AuthSystem.isProfileEditorOpen = false;
                 AuthSystem.syncUI();
               }
+            });
+
+            photoInput.addEventListener('change', async () => {
+              const file = photoInput.files && photoInput.files[0];
+              const result = await AuthSystem.updateProfilePicture(file);
+              status.textContent = result.message;
+              status.classList.toggle('error', !result.ok);
+              photoInput.value = '';
+            });
+
+            resetPhotoBtn.addEventListener('click', () => {
+              const result = AuthSystem.resetProfilePicture();
+              status.textContent = result.message;
+              status.classList.toggle('error', !result.ok);
             });
 
             profilePanel.appendChild(form);
