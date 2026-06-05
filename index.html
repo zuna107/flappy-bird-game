@@ -527,8 +527,9 @@
         padding: 14px 22px;
         border-top: 1px solid var(--border);
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
+        gap: 16px;
       }
 
       .lb-footer.hidden { display: none; }
@@ -569,6 +570,104 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .lb-footer-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 12px;
+        flex: 1;
+      }
+
+      .lb-profile-editor {
+        width: 100%;
+        max-width: 240px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .lb-profile-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .lb-profile-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lb-profile-input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .lb-profile-input:focus {
+        outline: none;
+        border-color: var(--coral);
+        box-shadow: 0 0 0 3px rgba(255, 95, 95, 0.14);
+      }
+
+      .btn-profile-save {
+        border: none;
+        border-radius: 12px;
+        background: var(--coral);
+        color: #fff;
+        padding: 10px 14px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .btn-profile-save:hover {
+        filter: brightness(0.98);
+      }
+
+      .lb-profile-status {
+        min-height: 16px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .lb-profile-status.error {
+        color: #E45858;
+      }
+
+      .lb-footer-logout {
+        align-self: flex-end;
+      }
+
+      @media (max-width: 900px) {
+        .lb-footer {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .lb-footer-actions {
+          align-items: stretch;
+        }
+
+        .lb-profile-editor {
+          max-width: none;
+        }
+
+        .lb-footer-logout {
+          align-self: flex-start;
+        }
       }
 
       /* ── MOBILE LEADERBOARD TOGGLE ─────────────────── */
@@ -771,7 +870,17 @@
             <span id="footer-user-avatar-wrap"></span>
             <span class="lb-footer-name" id="footer-user-name"></span>
           </div>
-          <button class="btn-signout-link" id="btn-leaderboard-logout">Sign out</button>
+          <div class="lb-footer-actions">
+            <form class="lb-profile-editor" id="profile-name-form">
+              <label class="lb-profile-label" for="profile-name-input">Profile name</label>
+              <div class="lb-profile-controls">
+                <input class="lb-profile-input" id="profile-name-input" type="text" maxlength="24" placeholder="Enter your name" />
+                <button class="btn-profile-save" type="submit">Save</button>
+              </div>
+              <div class="lb-profile-status" id="profile-name-status" aria-live="polite"></div>
+            </form>
+            <button class="btn-signout-link lb-footer-logout" id="btn-leaderboard-logout">Sign out</button>
+          </div>
         </div>
       </div>
 
@@ -1003,13 +1112,27 @@
           loggedIn: false
         },
 
+        getCustomNameForEmail(email) {
+          if (!email) return '';
+          const storedEmail = localStorage.getItem('fb_user_custom_name_email') || '';
+          if (storedEmail !== email) return '';
+          return (localStorage.getItem('fb_user_custom_name') || '').trim();
+        },
+
+        persistProfile() {
+          localStorage.setItem('fb_user_loggedIn', this.profile.loggedIn ? 'true' : 'false');
+          localStorage.setItem('fb_user_name', this.profile.name);
+          localStorage.setItem('fb_user_email', this.profile.email);
+          localStorage.setItem('fb_user_picture', this.profile.picture);
+        },
+
         init() {
           // Restore from localStorage
           const saved = localStorage.getItem('fb_user_loggedIn');
           if (saved === 'true') {
             this.profile.loggedIn = true;
             this.profile.email = localStorage.getItem('fb_user_email') || '';
-            this.profile.name = localStorage.getItem('fb_user_name') || '';
+            this.profile.name = this.getCustomNameForEmail(this.profile.email) || localStorage.getItem('fb_user_name') || '';
             this.profile.picture = localStorage.getItem('fb_user_picture') || '';
           }
           this.syncUI();
@@ -1053,14 +1176,11 @@
             const data = await res.json();
 
             this.profile.loggedIn = true;
-            this.profile.name = data.name || '';
             this.profile.email = data.email || '';
             this.profile.picture = data.picture || '';
+            this.profile.name = this.getCustomNameForEmail(this.profile.email) || data.name || '';
 
-            localStorage.setItem('fb_user_loggedIn', 'true');
-            localStorage.setItem('fb_user_name', this.profile.name);
-            localStorage.setItem('fb_user_email', this.profile.email);
-            localStorage.setItem('fb_user_picture', this.profile.picture);
+            this.persistProfile();
 
             // Store token for revoke
             localStorage.setItem('fb_access_token', accessToken);
@@ -1110,6 +1230,25 @@
           localStorage.removeItem('fb_access_token');
 
           this.syncUI();
+        },
+
+        updateProfileName(nextName) {
+          const cleanedName = nextName.trim().replace(/\s+/g, ' ');
+          if (!this.profile.loggedIn) {
+            return { ok: false, message: 'Sign in first to edit your profile.' };
+          }
+          if (cleanedName.length < 2) {
+            return { ok: false, message: 'Name must be at least 2 characters.' };
+          }
+
+          this.profile.name = cleanedName;
+          localStorage.setItem('fb_user_custom_name', cleanedName);
+          localStorage.setItem('fb_user_custom_name_email', this.profile.email);
+          this.persistProfile();
+          this.syncUI();
+          LeaderboardModel.updateCurrentUserName(cleanedName);
+
+          return { ok: true, message: 'Profile name saved.' };
         },
 
         showError(msg) {
@@ -1182,6 +1321,13 @@
             footerAvatarWrap.innerHTML = '';
             footerAvatarWrap.appendChild(this._renderAvatar(28));
             document.getElementById('footer-user-name').textContent = this.profile.name;
+            const profileInput = document.getElementById('profile-name-input');
+            const profileStatus = document.getElementById('profile-name-status');
+            if (profileInput) profileInput.value = this.profile.name;
+            if (profileStatus) {
+              profileStatus.textContent = '';
+              profileStatus.classList.remove('error');
+            }
 
             // Header: show user info + sign out
             topAuthNode.innerHTML = '';
@@ -1210,6 +1356,13 @@
             if (lockPanel) lockPanel.classList.remove('hidden');
             if (unlockedFooter) unlockedFooter.classList.add('hidden');
             if (gameoverPrompt) gameoverPrompt.classList.remove('hidden');
+            const profileInput = document.getElementById('profile-name-input');
+            const profileStatus = document.getElementById('profile-name-status');
+            if (profileInput) profileInput.value = '';
+            if (profileStatus) {
+              profileStatus.textContent = '';
+              profileStatus.classList.remove('error');
+            }
 
             // Header: sign in button
             topAuthNode.innerHTML = '';
@@ -1261,6 +1414,26 @@
 
           players.sort((a, b) => b.score - a.score);
           players = players.slice(0, 10);
+
+          localStorage.setItem('flappy_bird_leaderboard', JSON.stringify(players));
+          this.refreshDOM();
+        },
+
+        updateCurrentUserName(name) {
+          if (!AuthSystem.profile.loggedIn) return;
+
+          const userEmail = AuthSystem.profile.email;
+          const players = this.getScores();
+          let didUpdate = false;
+
+          players.forEach((player) => {
+            if (player.email === userEmail) {
+              player.name = name;
+              didUpdate = true;
+            }
+          });
+
+          if (!didUpdate) return;
 
           localStorage.setItem('flappy_bird_leaderboard', JSON.stringify(players));
           this.refreshDOM();
@@ -1927,6 +2100,20 @@
         });
         document.getElementById('btn-leaderboard-logout').addEventListener('click', () => {
           AuthSystem.logout();
+        });
+
+        document.getElementById('profile-name-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const input = document.getElementById('profile-name-input');
+          const status = document.getElementById('profile-name-status');
+          const result = AuthSystem.updateProfileName(input.value);
+
+          status.textContent = result.message;
+          status.classList.toggle('error', !result.ok);
+
+          if (result.ok) {
+            input.blur();
+          }
         });
 
         // Mobile leaderboard toggle
